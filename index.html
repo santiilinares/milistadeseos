@@ -8,220 +8,102 @@
   <style>
     body {
       background-color: #f8f9fa;
-      padding-bottom: 60px;
     }
     .wish-card img {
       object-fit: cover;
       height: 200px;
-      border-top-left-radius: 0.5rem;
-      border-top-right-radius: 0.5rem;
     }
-    @media (max-width: 768px) {
-      .wish-card img { height: 160px; }
-    }
-    .share-box { display: none; }
-    .navbar { border-bottom: 3px solid #0d6efd; }
-    .form-control, .btn { border-radius: 0.75rem; }
   </style>
 </head>
 <body>
 
   <nav class="navbar navbar-dark bg-primary mb-4">
-    <div class="container-fluid justify-content-center">
-      <span class="navbar-brand mb-0 h1 text-center">🎁 Mi Lista de Deseos</span>
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1">🎁 Mi Lista de Deseos</span>
     </div>
   </nav>
 
   <div class="container">
-
-    <!-- Formulario -->
-    <div id="formCard" class="card mb-4 shadow-sm">
+    <!-- Formulario para añadir deseos -->
+    <div class="card mb-4 shadow-sm">
       <div class="card-body">
-        <h5 class="card-title mb-3 text-center">Añadir nuevo deseo</h5>
+        <h5 class="card-title">Añadir nuevo deseo</h5>
         <form id="wishForm" class="row g-3">
-
-          <div class="col-12 col-md-6 col-lg-4">
-            <input type="url" id="wishLink" class="form-control" placeholder="Pega el enlace del producto" required>
+          <div class="col-md-4">
+            <input type="text" id="wishTitle" class="form-control" placeholder="Título del deseo" required>
           </div>
-
-          <div class="col-6 col-md-3 col-lg-2">
-            <input type="number" id="wishPrice" class="form-control" placeholder="Precio (€)" min="0" step="0.01">
+          <div class="col-md-4">
+            <input type="url" id="wishLink" class="form-control" placeholder="Enlace (opcional)">
           </div>
-
-          <div class="col-6 col-md-3 col-lg-4">
-            <input type="text" id="wishTitle" class="form-control" placeholder="Título (auto o manual)">
+          <div class="col-md-4">
+            <input type="url" id="wishImage" class="form-control" placeholder="URL de la imagen (opcional)">
           </div>
-
-          <div class="col-12 col-md-3 col-lg-2">
-            <input type="url" id="wishImageManual" class="form-control mb-1" placeholder="Imagen (URL manual)">
-            <input type="file" id="wishImageFile" accept="image/*" class="form-control">
-            <small class="text-muted d-block">Si la detección falla, pega URL o sube una imagen.</small>
+          <div class="col-12 text-end">
+            <button type="submit" class="btn btn-success">Añadir a la lista</button>
           </div>
-
-          <div class="col-12 col-md-1 text-center">
-            <button type="submit" class="btn btn-success w-100">Añadir</button>
-          </div>
-
         </form>
-        <small class="text-muted d-block mt-2 text-center">
-          Al pegar el enlace, intentaré detectar título e imagen automáticamente 😉
-        </small>
       </div>
     </div>
 
-    <!-- Botón para compartir -->
-    <div id="shareControls" class="text-end mb-3">
-      <button id="shareButton" class="btn btn-outline-primary">🔗 Generar enlace compartible</button>
-    </div>
-
-    <!-- Caja del enlace generado -->
-    <div id="shareBox" class="share-box card card-body mb-4">
-      <p class="mb-2">Copia y comparte este enlace:</p>
-      <input id="shareLink" class="form-control" readonly>
-      <button class="btn btn-sm btn-secondary mt-2" onclick="copyLink()">📋 Copiar</button>
-    </div>
-
     <!-- Lista de deseos -->
-    <div id="wishlist" class="row g-4 justify-content-center"></div>
+    <div id="wishlist" class="row g-4">
+      <!-- Aquí se añadirán los deseos dinámicamente -->
+    </div>
   </div>
 
   <script>
     const form = document.getElementById('wishForm');
     const wishlist = document.getElementById('wishlist');
-    const shareButton = document.getElementById('shareButton');
-    const shareBox = document.getElementById('shareBox');
-    const shareLink = document.getElementById('shareLink');
-    const formCard = document.getElementById('formCard');
-    const shareControls = document.getElementById('shareControls');
 
+    // 🔹 Cargar deseos guardados al iniciar
     let wishes = JSON.parse(localStorage.getItem('wishlist')) || [];
 
-    // 🔹 Modo compartido
-    const hashData = location.hash.startsWith('#data=') ? location.hash.slice(6) : null;
-    const isSharedView = !!hashData;
-    if (hashData) {
-      try {
-        const decoded = JSON.parse(atob(decodeURIComponent(hashData)));
-        wishes = decoded;
-        localStorage.setItem('wishlist', JSON.stringify(wishes));
-        formCard.style.display = 'none';
-        shareControls.style.display = 'none';
-      } catch (err) { console.error("Error al decodificar los datos del enlace:", err); }
-    }
-
-    // 🔹 Renderizar lista
+    // Función para renderizar la lista
     function renderWishes() {
       wishlist.innerHTML = '';
       wishes.forEach((wish, index) => {
         const card = document.createElement('div');
-        card.classList.add('col-12', 'col-sm-6', 'col-lg-4');
+        card.classList.add('col-md-4');
         card.innerHTML = `
-          <div class="card wish-card shadow-sm h-100">
+          <div class="card wish-card shadow-sm">
             <img src="${wish.image}" class="card-img-top" alt="${wish.title}">
-            <div class="card-body d-flex flex-column">
+            <div class="card-body">
               <h5 class="card-title">${wish.title}</h5>
-              ${wish.price ? `<p class="card-text fw-bold text-success">💰 ${parseFloat(wish.price).toFixed(2)} €</p>` : ''}
-              <div class="mt-auto">
-                ${wish.link ? `<a href="${wish.link}" target="_blank" class="btn btn-outline-primary mb-2 w-100">Ver enlace</a>` : ''}
-                ${!isSharedView ? `<button class="btn btn-outline-danger btn-sm w-100" onclick="deleteWish(${index})">Eliminar</button>` : ''}
-              </div>
+              ${wish.link ? `<a href="${wish.link}" target="_blank" class="btn btn-outline-primary mb-2">Ver enlace</a>` : ''}
+              <button class="btn btn-outline-danger btn-sm" onclick="deleteWish(${index})">Eliminar</button>
             </div>
-          </div>`;
+          </div>
+        `;
         wishlist.appendChild(card);
       });
     }
 
-    function saveWishes() { localStorage.setItem('wishlist', JSON.stringify(wishes)); }
+    // 🔹 Guardar en localStorage
+    function saveWishes() {
+      localStorage.setItem('wishlist', JSON.stringify(wishes));
+    }
 
-    // 🔹 Autocompletar al pegar un enlace (Microlink)
-    const wishLinkInput = document.getElementById('wishLink');
-    const wishImageManual = document.getElementById('wishImageManual');
-    const wishImageFile = document.getElementById('wishImageFile');
-
-    wishLinkInput.addEventListener('change', async (e) => {
-      const url = e.target.value.trim();
-      if (!url) return;
-      wishImageManual.value = '';
-      delete wishLinkInput.dataset.image;
-
-      try {
-        const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=true&image.size=large`);
-        const json = await res.json();
-        console.log('Microlink response:', json);
-
-        const d = json?.data || {};
-        const possibleImage =
-          d.image?.url ||
-          (d.open_graph && (d.open_graph.images?.[0]?.url || d.open_graph.image?.url)) ||
-          (d.twitter && (d.twitter.images?.[0] || d.twitter.image?.url)) ||
-          d.logo?.url ||
-          d.lead_image?.url ||
-          '';
-
-        if (possibleImage) {
-          wishLinkInput.dataset.image = possibleImage;
-          wishImageManual.value = possibleImage;
-        } else {
-          wishLinkInput.dataset.image = '';
-          wishImageManual.value = '';
-        }
-      } catch (err) {
-        console.warn("No se pudo obtener información del enlace:", err);
-        wishLinkInput.dataset.image = '';
-      }
-    });
-
-    // 🔹 Imagen subida por el usuario
-    wishImageFile.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        wishLinkInput.dataset.image = reader.result;
-        wishImageManual.value = '';
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // 🔹 Añadir deseo
-    form?.addEventListener('submit', (e) => {
+    // 🔹 Añadir un nuevo deseo
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const title = document.getElementById('wishTitle').value || 'Deseo sin título';
-      const price = document.getElementById('wishPrice').value;
+      const title = document.getElementById('wishTitle').value;
       const link = document.getElementById('wishLink').value;
-      const manualUrl = (wishImageManual?.value || '').trim();
-      const datasetImage = wishLinkInput.dataset.image || '';
-      const image = manualUrl || datasetImage || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
+      const image = document.getElementById('wishImage').value || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
 
-      wishes.push({ title, price, link, image });
+      wishes.push({ title, link, image });
       saveWishes();
       renderWishes();
       form.reset();
-      delete wishLinkInput.dataset.image;
     });
 
-    // 🔹 Eliminar
+    // 🔹 Eliminar deseo
     function deleteWish(index) {
       wishes.splice(index, 1);
       saveWishes();
       renderWishes();
     }
 
-    // 🔹 Generar enlace compartible
-    shareButton?.addEventListener('click', () => {
-      const encoded = encodeURIComponent(btoa(JSON.stringify(wishes)));
-      const url = `${location.origin}${location.pathname}#data=${encoded}`;
-      shareLink.value = url;
-      shareBox.style.display = 'block';
-    });
-
-    // 🔹 Copiar enlace
-    function copyLink() {
-      shareLink.select();
-      document.execCommand('copy');
-      alert('¡Enlace copiado al portapapeles!');
-    }
-
+    // Renderizar al cargar la página
     renderWishes();
   </script>
 

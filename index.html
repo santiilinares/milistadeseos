@@ -24,19 +24,22 @@
   </nav>
 
   <div class="container">
-    <!-- Formulario para añadir deseos -->
+    <!-- Formulario -->
     <div class="card mb-4 shadow-sm">
       <div class="card-body">
         <h5 class="card-title">Añadir nuevo deseo</h5>
         <form id="wishForm" class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-3">
             <input type="text" id="wishTitle" class="form-control" placeholder="Título del deseo" required>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <input type="url" id="wishLink" class="form-control" placeholder="Enlace (opcional)">
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <input type="url" id="wishImage" class="form-control" placeholder="URL de la imagen (opcional)">
+          </div>
+          <div class="col-md-3">
+            <input type="number" id="wishPrice" class="form-control" placeholder="Precio (€)" min="0" step="0.01">
           </div>
           <div class="col-12 text-end">
             <button type="submit" class="btn btn-success">Añadir a la lista</button>
@@ -45,20 +48,34 @@
       </div>
     </div>
 
-    <!-- Lista de deseos -->
-    <div id="wishlist" class="row g-4">
-      <!-- Aquí se añadirán los deseos dinámicamente -->
+    <!-- Botón para generar enlace compartido -->
+    <div class="text-end mb-3" id="shareControls" style="display:none;">
+      <button id="shareButton" class="btn btn-outline-primary">🔗 Generar enlace compartible</button>
     </div>
+
+    <!-- Caja del enlace generado -->
+    <div id="shareBox" class="card card-body mb-4" style="display:none;">
+      <p class="mb-2">Copia este enlace y compártelo (luego puedes acortarlo con TinyURL o Bitly):</p>
+      <input id="shareLink" class="form-control mb-2" readonly>
+      <button class="btn btn-sm btn-secondary" onclick="copyLink()">📋 Copiar al portapapeles</button>
+    </div>
+
+    <!-- Lista de deseos -->
+    <div id="wishlist" class="row g-4"></div>
   </div>
 
   <script>
     const form = document.getElementById('wishForm');
     const wishlist = document.getElementById('wishlist');
+    const shareButton = document.getElementById('shareButton');
+    const shareBox = document.getElementById('shareBox');
+    const shareLink = document.getElementById('shareLink');
+    const shareControls = document.getElementById('shareControls');
 
-    // 🔹 Cargar deseos guardados al iniciar
+    // 🔹 Cargar deseos guardados
     let wishes = JSON.parse(localStorage.getItem('wishlist')) || [];
 
-    // Función para renderizar la lista
+    // 🔹 Renderizar lista y actualizar botón de compartir
     function renderWishes() {
       wishlist.innerHTML = '';
       wishes.forEach((wish, index) => {
@@ -66,9 +83,10 @@
         card.classList.add('col-md-4');
         card.innerHTML = `
           <div class="card wish-card shadow-sm">
-            <img src="${wish.image}" class="card-img-top" alt="${wish.title}">
+            <img src="${wish.image || 'https://via.placeholder.com/400x200?text=Sin+Imagen'}" class="card-img-top" alt="${wish.title}">
             <div class="card-body">
               <h5 class="card-title">${wish.title}</h5>
+              ${wish.price ? `<p class="text-success fw-bold">💰 ${parseFloat(wish.price).toFixed(2)} €</p>` : ''}
               ${wish.link ? `<a href="${wish.link}" target="_blank" class="btn btn-outline-primary mb-2">Ver enlace</a>` : ''}
               <button class="btn btn-outline-danger btn-sm" onclick="deleteWish(${index})">Eliminar</button>
             </div>
@@ -76,6 +94,9 @@
         `;
         wishlist.appendChild(card);
       });
+
+      // Mostrar u ocultar botón de generar enlace según haya deseos
+      shareControls.style.display = wishes.length > 0 ? 'block' : 'none';
     }
 
     // 🔹 Guardar en localStorage
@@ -83,14 +104,15 @@
       localStorage.setItem('wishlist', JSON.stringify(wishes));
     }
 
-    // 🔹 Añadir un nuevo deseo
+    // 🔹 Añadir deseo
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const title = document.getElementById('wishTitle').value;
       const link = document.getElementById('wishLink').value;
       const image = document.getElementById('wishImage').value || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
+      const price = document.getElementById('wishPrice').value;
 
-      wishes.push({ title, link, image });
+      wishes.push({ title, link, image, price });
       saveWishes();
       renderWishes();
       form.reset();
@@ -103,7 +125,33 @@
       renderWishes();
     }
 
-    // Renderizar al cargar la página
+    // 🔹 Generar enlace compartible
+    shareButton.addEventListener('click', () => {
+      const encoded = encodeURIComponent(btoa(JSON.stringify(wishes)));
+      const url = `${location.origin}${location.pathname}#data=${encoded}`;
+      shareLink.value = url;
+      shareBox.style.display = 'block';
+    });
+
+    // 🔹 Copiar enlace al portapapeles
+    function copyLink() {
+      shareLink.select();
+      document.execCommand('copy');
+      alert('¡Enlace copiado! Ahora puedes acortarlo con TinyURL o Bitly.');
+    }
+
+    // 🔹 Si se abre con enlace compartido
+    if (location.hash.startsWith('#data=')) {
+      try {
+        const data = JSON.parse(atob(decodeURIComponent(location.hash.slice(6))));
+        wishes = data;
+        renderWishes();
+      } catch (err) {
+        console.error('Error al decodificar el enlace compartido:', err);
+      }
+    }
+
+    // 🔹 Renderizar al cargar
     renderWishes();
   </script>
 

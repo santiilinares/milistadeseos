@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mi Lista de Deseos</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
   <style>
     body {
       background-color: #f8f9fa;
@@ -18,19 +17,11 @@
       border-top-right-radius: 0.5rem;
     }
     @media (max-width: 768px) {
-      .wish-card img {
-        height: 160px;
-      }
+      .wish-card img { height: 160px; }
     }
-    .share-box {
-      display: none;
-    }
-    .navbar {
-      border-bottom: 3px solid #0d6efd;
-    }
-    .form-control, .btn {
-      border-radius: 0.75rem;
-    }
+    .share-box { display: none; }
+    .navbar { border-bottom: 3px solid #0d6efd; }
+    .form-control, .btn { border-radius: 0.75rem; }
   </style>
 </head>
 <body>
@@ -42,23 +33,35 @@
   </nav>
 
   <div class="container">
+
     <!-- Formulario -->
     <div id="formCard" class="card mb-4 shadow-sm">
       <div class="card-body">
         <h5 class="card-title mb-3 text-center">Añadir nuevo deseo</h5>
         <form id="wishForm" class="row g-3">
+
           <div class="col-12 col-md-6 col-lg-4">
             <input type="url" id="wishLink" class="form-control" placeholder="Pega el enlace del producto" required>
           </div>
+
           <div class="col-6 col-md-3 col-lg-2">
             <input type="number" id="wishPrice" class="form-control" placeholder="Precio (€)" min="0" step="0.01">
           </div>
+
           <div class="col-6 col-md-3 col-lg-4">
             <input type="text" id="wishTitle" class="form-control" placeholder="Título (auto o manual)">
           </div>
-          <div class="col-12 col-md-2 text-center">
+
+          <div class="col-12 col-md-3 col-lg-2">
+            <input type="url" id="wishImageManual" class="form-control mb-1" placeholder="Imagen (URL manual)">
+            <input type="file" id="wishImageFile" accept="image/*" class="form-control">
+            <small class="text-muted d-block">Si la detección falla, pega URL o sube una imagen.</small>
+          </div>
+
+          <div class="col-12 col-md-1 text-center">
             <button type="submit" class="btn btn-success w-100">Añadir</button>
           </div>
+
         </form>
         <small class="text-muted d-block mt-2 text-center">
           Al pegar el enlace, intentaré detectar título e imagen automáticamente 😉
@@ -78,7 +81,7 @@
       <button class="btn btn-sm btn-secondary mt-2" onclick="copyLink()">📋 Copiar</button>
     </div>
 
-    <!-- Lista -->
+    <!-- Lista de deseos -->
     <div id="wishlist" class="row g-4 justify-content-center"></div>
   </div>
 
@@ -130,20 +133,54 @@
 
     function saveWishes() { localStorage.setItem('wishlist', JSON.stringify(wishes)); }
 
-    // 🔹 Autocompletar al pegar un enlace
-    document.getElementById('wishLink').addEventListener('change', async (e) => {
+    // 🔹 Autocompletar al pegar un enlace (Microlink)
+    const wishLinkInput = document.getElementById('wishLink');
+    const wishImageManual = document.getElementById('wishImageManual');
+    const wishImageFile = document.getElementById('wishImageFile');
+
+    wishLinkInput.addEventListener('change', async (e) => {
       const url = e.target.value.trim();
       if (!url) return;
+      wishImageManual.value = '';
+      delete wishLinkInput.dataset.image;
+
       try {
-        const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
-        const data = await res.json();
-        if (data && data.data) {
-          document.getElementById('wishTitle').value = data.data.title || '';
-          document.getElementById('wishLink').dataset.image = data.data.image?.url || '';
+        const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=true&image.size=large`);
+        const json = await res.json();
+        console.log('Microlink response:', json);
+
+        const d = json?.data || {};
+        const possibleImage =
+          d.image?.url ||
+          (d.open_graph && (d.open_graph.images?.[0]?.url || d.open_graph.image?.url)) ||
+          (d.twitter && (d.twitter.images?.[0] || d.twitter.image?.url)) ||
+          d.logo?.url ||
+          d.lead_image?.url ||
+          '';
+
+        if (possibleImage) {
+          wishLinkInput.dataset.image = possibleImage;
+          wishImageManual.value = possibleImage;
+        } else {
+          wishLinkInput.dataset.image = '';
+          wishImageManual.value = '';
         }
       } catch (err) {
         console.warn("No se pudo obtener información del enlace:", err);
+        wishLinkInput.dataset.image = '';
       }
+    });
+
+    // 🔹 Imagen subida por el usuario
+    wishImageFile.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        wishLinkInput.dataset.image = reader.result;
+        wishImageManual.value = '';
+      };
+      reader.readAsDataURL(file);
     });
 
     // 🔹 Añadir deseo
@@ -152,12 +189,15 @@
       const title = document.getElementById('wishTitle').value || 'Deseo sin título';
       const price = document.getElementById('wishPrice').value;
       const link = document.getElementById('wishLink').value;
-      const image = document.getElementById('wishLink').dataset.image || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
+      const manualUrl = (wishImageManual?.value || '').trim();
+      const datasetImage = wishLinkInput.dataset.image || '';
+      const image = manualUrl || datasetImage || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
 
       wishes.push({ title, price, link, image });
       saveWishes();
       renderWishes();
       form.reset();
+      delete wishLinkInput.dataset.image;
     });
 
     // 🔹 Eliminar

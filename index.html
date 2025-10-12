@@ -68,7 +68,7 @@
 
     <!-- Caja del enlace generado -->
     <div id="shareBox" class="card card-body mb-4" style="display:none;">
-      <p class="mb-2">Copia este enlace y compártelo (luego puedes acortarlo con TinyURL o Bitly):</p>
+      <p class="mb-2">Enlace corto listo para compartir:</p>
       <input id="shareLink" class="form-control mb-2" readonly>
       <button class="btn btn-sm btn-secondary" onclick="copyLink()">📋 Copiar al portapapeles</button>
     </div>
@@ -104,10 +104,8 @@
           </div>
         `;
         wishlist.appendChild(col);
-        // Trigger animación
         setTimeout(() => col.firstElementChild.classList.add('show'), 50);
       });
-
       shareControls.style.display = wishes.length > 0 ? 'block' : 'none';
     }
 
@@ -135,20 +133,35 @@
         wishes.splice(index, 1);
         saveWishes();
         renderWishes();
-      }, 300); // Espera animación
+      }, 300);
     }
 
-    shareButton.addEventListener('click', () => {
+    // 🔹 Función para generar enlace corto automáticamente con TinyURL
+    async function generateShortLink(longUrl) {
+      try {
+        const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+        if (!res.ok) throw new Error("Error al generar el enlace");
+        const shortUrl = await res.text();
+        return shortUrl;
+      } catch (err) {
+        alert("No se pudo generar el enlace corto. Usa el enlace largo como alternativa.");
+        return longUrl;
+      }
+    }
+
+    shareButton.addEventListener('click', async () => {
       const encoded = encodeURIComponent(btoa(JSON.stringify(wishes)));
-      const url = `${location.origin}${location.pathname}#data=${encoded}`;
-      shareLink.value = url;
+      const longUrl = `${location.origin}${location.pathname}#data=${encoded}`;
       shareBox.style.display = 'block';
+      shareLink.value = "Generando...";
+      const shortUrl = await generateShortLink(longUrl);
+      shareLink.value = shortUrl;
     });
 
     function copyLink() {
       shareLink.select();
       document.execCommand('copy');
-      alert('¡Enlace copiado! Ahora puedes acortarlo con TinyURL o Bitly.');
+      alert('¡Enlace copiado al portapapeles!');
     }
 
     if (location.hash.startsWith('#data=')) {

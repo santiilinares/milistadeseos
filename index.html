@@ -4,15 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mi Lista de Deseos</title>
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3730/3730613.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
       background-color: #f8f9fa;
     }
+
+    /* Imagen de introducción */
+    .intro-image img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+    }
+
+    /* Contador animado */
+    #countdown {
+      font-size: 1.25rem;
+      animation: glow 3s ease-in-out infinite;
+      text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+    }
+
+    @keyframes glow {
+      0% { color: #dc3545; text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
+      50% { color: #ffc107; text-shadow: 0 0 16px rgba(255, 255, 0, 0.7); }
+      100% { color: #dc3545; text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
+    }
+
+    /* Barra de progreso */
+    #progress-container {
+      max-width: 400px;
+      margin: 0 auto 20px auto;
+    }
+
+    /* Cards de deseos */
     .wish-card img {
       object-fit: cover;
       height: 200px;
       transition: transform 0.3s ease;
+      cursor: pointer;
     }
     .wish-card img:hover {
       transform: scale(1.05);
@@ -26,6 +56,8 @@
       opacity: 1;
       transform: translateY(0);
     }
+
+    /* Vista previa de imagen */
     .preview-img {
       height: 100px;
       object-fit: cover;
@@ -36,17 +68,38 @@
 </head>
 <body>
 
-  <nav class="navbar navbar-dark bg-primary mb-4">
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark bg-primary mb-3">
     <div class="container-fluid">
       <span class="navbar-brand mb-0 h1">🎁 Mi Lista de Deseos</span>
     </div>
   </nav>
 
+  <!-- Imagen de introducción -->
+  <div class="intro-image text-center my-3">
+    <img src="https://img1.picmix.com/output/stamp/normal/0/2/3/0/1100320_722ba.png" 
+         alt="Imagen de introducción" 
+         class="img-fluid rounded-circle shadow-sm">
+    <p class="mt-2 text-muted">Bienvenido a mi lista de deseos 🎅</p>
+  </div>
+
+  <!-- Contador de días -->
+  <div class="text-center mb-2">
+    <h5 class="fw-semibold" id="countdown"></h5>
+  </div>
+
+  <!-- Barra de progreso -->
+  <div id="progress-container">
+    <div class="progress">
+      <div class="progress-bar bg-warning" role="progressbar" style="width: 0%;" id="reyesProgress"></div>
+    </div>
+  </div>
+
   <div class="container">
-    <!-- Formulario principal -->
+    <!-- Formulario -->
     <div class="card mb-4 shadow-sm">
       <div class="card-body">
-        <h5 class="card-title">Añadir nuevo deseo</h5>
+        <h5 class="card-title" id="formTitle">Añadir nuevo deseo</h5>
         <form id="wishForm" class="row g-3">
           <div class="col-md-3">
             <input type="text" id="wishTitle" class="form-control" placeholder="Título del deseo" required>
@@ -57,9 +110,10 @@
           <div class="col-md-3">
             <input type="number" id="wishPrice" class="form-control" placeholder="Precio (€)" min="0" step="0.01">
           </div>
+
           <div class="col-md-3">
             <select id="imageType" class="form-select">
-              <option value="url" selected>Usar URL de imagen</option>
+              <option value="url" selected>Usar enlace de imagen</option>
               <option value="upload">Subir imagen</option>
             </select>
           </div>
@@ -68,7 +122,7 @@
             <input type="url" id="wishImageURL" class="form-control" placeholder="URL de la imagen (opcional)">
           </div>
 
-          <div class="col-md-6" id="fileInputContainer" style="display:none;">
+          <div class="col-md-6" id="fileInputContainer" style="display: none;">
             <input type="file" id="wishImageFile" class="form-control" accept="image/*">
           </div>
 
@@ -77,13 +131,14 @@
           </div>
 
           <div class="col-12 text-end">
-            <button type="submit" class="btn btn-success">Añadir a la lista</button>
+            <button type="submit" class="btn btn-success" id="submitButton">Añadir a la lista</button>
+            <button type="button" class="btn btn-secondary" id="cancelEditButton" style="display:none;">Cancelar edición</button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- Botón de compartir -->
+    <!-- Compartir -->
     <div class="text-end mb-3" id="shareControls" style="display:none;">
       <button id="shareButton" class="btn btn-outline-primary">🔗 Generar enlace compartible</button>
     </div>
@@ -96,45 +151,6 @@
 
     <!-- Lista de deseos -->
     <div id="wishlist" class="row g-4"></div>
-  </div>
-
-  <!-- Modal de edición -->
-  <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <form id="editForm">
-          <div class="modal-header">
-            <h5 class="modal-title">Editar deseo</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <input type="hidden" id="editIndex">
-            <div class="mb-3">
-              <label class="form-label">Título</label>
-              <input type="text" id="editTitle" class="form-control" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Enlace</label>
-              <input type="url" id="editLink" class="form-control">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Precio (€)</label>
-              <input type="number" id="editPrice" class="form-control" min="0" step="0.01">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Imagen (URL o subir nueva)</label>
-              <input type="url" id="editImageURL" class="form-control mb-2" placeholder="URL de imagen (opcional)">
-              <input type="file" id="editImageFile" class="form-control" accept="image/*">
-              <img id="editPreview" class="preview-img mt-2" alt="Vista previa">
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Guardar cambios</button>
-          </div>
-        </form>
-      </div>
-    </div>
   </div>
 
   <script>
@@ -150,25 +166,37 @@
     const urlContainer = document.getElementById('urlInputContainer');
     const fileContainer = document.getElementById('fileInputContainer');
     const preview = document.getElementById('imagePreview');
-    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
-    const editForm = document.getElementById('editForm');
+    const formTitle = document.getElementById('formTitle');
+    const submitButton = document.getElementById('submitButton');
+    const cancelEditButton = document.getElementById('cancelEditButton');
+    const progressBar = document.getElementById('reyesProgress');
 
     let wishes = JSON.parse(localStorage.getItem('wishlist')) || [];
+    let editIndex = null;
 
+    // Imagen URL o subida
     imageType.addEventListener('change', () => {
       if (imageType.value === 'upload') {
         urlContainer.style.display = 'none';
         fileContainer.style.display = 'block';
+        preview.style.display = 'none';
+        preview.src = '';
+        setTimeout(() => fileInput.click(), 100);
       } else {
         fileContainer.style.display = 'none';
         urlContainer.style.display = 'block';
+        preview.style.display = 'none';
+        preview.src = '';
       }
-      preview.style.display = 'none';
     });
 
     urlInput.addEventListener('input', () => {
-      preview.src = urlInput.value;
-      preview.style.display = urlInput.value ? 'block' : 'none';
+      if (urlInput.value.trim()) {
+        preview.src = urlInput.value;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
     });
 
     fileInput.addEventListener('change', () => {
@@ -180,9 +208,51 @@
           preview.style.display = 'block';
         };
         reader.readAsDataURL(file);
-      }
+      } else preview.style.display = 'none';
     });
 
+    // Añadir / Editar deseo
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const title = document.getElementById('wishTitle').value;
+      const link = document.getElementById('wishLink').value;
+      const price = document.getElementById('wishPrice').value;
+
+      let image = '';
+      if (imageType.value === 'url') {
+        image = urlInput.value || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
+      } else if (fileInput.files.length > 0) {
+        image = preview.src;
+      } else image = 'https://via.placeholder.com/400x200?text=Sin+Imagen';
+
+      const newWish = { title, link, image, price };
+
+      if (editIndex !== null) {
+        wishes[editIndex] = newWish;
+        editIndex = null;
+        formTitle.textContent = "Añadir nuevo deseo";
+        submitButton.textContent = "Añadir a la lista";
+        cancelEditButton.style.display = "none";
+      } else {
+        wishes.push(newWish);
+      }
+
+      localStorage.setItem('wishlist', JSON.stringify(wishes));
+      renderWishes();
+      form.reset();
+      preview.style.display = 'none';
+    });
+
+    cancelEditButton.addEventListener('click', () => {
+      editIndex = null;
+      form.reset();
+      preview.style.display = 'none';
+      formTitle.textContent = "Añadir nuevo deseo";
+      submitButton.textContent = "Añadir a la lista";
+      cancelEditButton.style.display = "none";
+    });
+
+    // Renderizar deseos con enlace en imagen
     function renderWishes() {
       wishlist.innerHTML = '';
       wishes.forEach((wish, index) => {
@@ -190,14 +260,15 @@
         col.classList.add('col-md-4');
         col.innerHTML = `
           <div class="card wish-card shadow-sm">
-            <img src="${wish.image || 'https://via.placeholder.com/400x200?text=Sin+Imagen'}" class="card-img-top" alt="${wish.title}">
+            ${wish.link ? `<a href="${wish.link}" target="_blank"><img src="${wish.image}" class="card-img-top" alt="${wish.title}"></a>` :
+            `<img src="${wish.image}" class="card-img-top" alt="${wish.title}">`}
             <div class="card-body">
               <h5 class="card-title">${wish.title}</h5>
               ${wish.price ? `<p class="text-success fw-bold">💰 ${parseFloat(wish.price).toFixed(2)} €</p>` : ''}
               ${wish.link ? `<a href="${wish.link}" target="_blank" class="btn btn-outline-primary mb-2">Ver enlace</a>` : ''}
               <div class="d-flex justify-content-between">
                 <button class="btn btn-outline-warning btn-sm" onclick="editWish(${index})">✏️ Editar</button>
-                <button class="btn btn-outline-danger btn-sm" onclick="deleteWish(${index})">🗑 Eliminar</button>
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteWish(${index})">🗑️ Eliminar</button>
               </div>
             </div>
           </div>
@@ -208,96 +279,44 @@
       shareControls.style.display = wishes.length > 0 ? 'block' : 'none';
     }
 
-    function saveWishes() {
-      localStorage.setItem('wishlist', JSON.stringify(wishes));
+    function editWish(index) {
+      const wish = wishes[index];
+      editIndex = index;
+      formTitle.textContent = "✏️ Editar deseo";
+      submitButton.textContent = "Guardar cambios";
+      cancelEditButton.style.display = "inline-block";
+
+      document.getElementById('wishTitle').value = wish.title;
+      document.getElementById('wishLink').value = wish.link;
+      document.getElementById('wishPrice').value = wish.price;
+      urlInput.value = wish.image;
+      preview.src = wish.image;
+      preview.style.display = 'block';
+      imageType.value = 'url';
+      urlContainer.style.display = 'block';
+      fileContainer.style.display = 'none';
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const title = document.getElementById('wishTitle').value;
-      const link = document.getElementById('wishLink').value;
-      const price = document.getElementById('wishPrice').value;
-      let image = '';
-      if (imageType.value === 'url') {
-        image = urlInput.value || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
-      } else if (fileInput.files.length > 0) {
-        image = preview.src;
-      } else {
-        image = 'https://via.placeholder.com/400x200?text=Sin+Imagen';
-      }
-
-      wishes.push({ title, link, price, image });
-      saveWishes();
-      renderWishes();
-      form.reset();
-      preview.style.display = 'none';
-    });
 
     function deleteWish(index) {
       const card = wishlist.children[index].firstElementChild;
       card.classList.remove('show');
       setTimeout(() => {
         wishes.splice(index, 1);
-        saveWishes();
+        localStorage.setItem('wishlist', JSON.stringify(wishes));
         renderWishes();
       }, 300);
     }
 
-    // ✏️ Editar deseo
-    function editWish(index) {
-      const wish = wishes[index];
-      document.getElementById('editIndex').value = index;
-      document.getElementById('editTitle').value = wish.title;
-      document.getElementById('editLink').value = wish.link;
-      document.getElementById('editPrice').value = wish.price;
-      document.getElementById('editImageURL').value = '';
-      document.getElementById('editImageFile').value = '';
-      const preview = document.getElementById('editPreview');
-      preview.src = wish.image || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
-      preview.style.display = 'block';
-      editModal.show();
-    }
-
-    document.getElementById('editImageURL').addEventListener('input', e => {
-      const preview = document.getElementById('editPreview');
-      preview.src = e.target.value;
-      preview.style.display = e.target.value ? 'block' : 'none';
-    });
-
-    document.getElementById('editImageFile').addEventListener('change', e => {
-      const file = e.target.files[0];
-      const preview = document.getElementById('editPreview');
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          preview.src = ev.target.result;
-          preview.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-
-    editForm.addEventListener('submit', e => {
-      e.preventDefault();
-      const index = document.getElementById('editIndex').value;
-      const title = document.getElementById('editTitle').value;
-      const link = document.getElementById('editLink').value;
-      const price = document.getElementById('editPrice').value;
-      const imageURL = document.getElementById('editImageURL').value;
-      const imagePreview = document.getElementById('editPreview').src;
-      wishes[index] = { title, link, price, image: imageURL || imagePreview };
-      saveWishes();
-      renderWishes();
-      editModal.hide();
-    });
-
+    // Compartir
     async function generateShortLink(longUrl) {
       try {
         const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
         if (!res.ok) throw new Error("Error al generar el enlace");
         return await res.text();
-      } catch {
-        alert("No se pudo generar el enlace corto.");
+      } catch (err) {
+        alert("No se pudo generar el enlace corto. Usa el largo como alternativa.");
         return longUrl;
       }
     }
@@ -321,9 +340,36 @@
       try {
         const data = JSON.parse(atob(decodeURIComponent(location.hash.slice(6))));
         wishes = data;
-      } catch {}
+        renderWishes();
+      } catch (err) {
+        console.error('Error al decodificar el enlace compartido:', err);
+      }
     }
 
+    // Contador de días y barra de progreso
+    function updateCountdown() {
+      const targetDate = new Date("2026-01-06T00:00:00");
+      const now = new Date();
+      const diff = targetDate - now;
+      const days = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+
+      const countdownEl = document.getElementById("countdown");
+      if (days > 0) {
+        countdownEl.textContent = `🎁 Faltan ${days} día${days === 1 ? '' : 's'} para el Día de Reyes 👑`;
+      } else {
+        countdownEl.textContent = "👑 ¡Feliz Día de Reyes! 🎉";
+      }
+
+      // Barra de progreso
+      const startDate = new Date("2025-01-01T00:00:00"); // inicio del año
+      const totalDays = (targetDate - startDate) / (1000*60*60*24);
+      const elapsedDays = (now - startDate) / (1000*60*60*24);
+      const percent = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+      progressBar.style.width = percent + "%";
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000 * 60 * 60); // cada hora
     renderWishes();
   </script>
 

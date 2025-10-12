@@ -3,68 +3,83 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mi Lista de Deseos Compartible</title>
+  <title>Mi Lista de Deseos</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
   <style>
     body {
       background-color: #f8f9fa;
+      padding-bottom: 60px;
     }
     .wish-card img {
       object-fit: cover;
       height: 200px;
+      border-top-left-radius: 0.5rem;
+      border-top-right-radius: 0.5rem;
+    }
+    @media (max-width: 768px) {
+      .wish-card img {
+        height: 160px;
+      }
     }
     .share-box {
       display: none;
+    }
+    .navbar {
+      border-bottom: 3px solid #0d6efd;
+    }
+    .form-control, .btn {
+      border-radius: 0.75rem;
     }
   </style>
 </head>
 <body>
 
   <nav class="navbar navbar-dark bg-primary mb-4">
-    <div class="container-fluid">
-      <span class="navbar-brand mb-0 h1">🎁 Mi Lista de Deseos</span>
+    <div class="container-fluid justify-content-center">
+      <span class="navbar-brand mb-0 h1 text-center">🎁 Mi Lista de Deseos</span>
     </div>
   </nav>
 
   <div class="container">
-    <!-- Formulario para añadir deseos -->
-    <div class="card mb-4 shadow-sm">
+    <!-- Formulario -->
+    <div id="formCard" class="card mb-4 shadow-sm">
       <div class="card-body">
-        <h5 class="card-title">Añadir nuevo deseo</h5>
+        <h5 class="card-title mb-3 text-center">Añadir nuevo deseo</h5>
         <form id="wishForm" class="row g-3">
-          <div class="col-md-3">
-            <input type="text" id="wishTitle" class="form-control" placeholder="Título del deseo" required>
+          <div class="col-12 col-md-6 col-lg-4">
+            <input type="url" id="wishLink" class="form-control" placeholder="Pega el enlace del producto" required>
           </div>
-          <div class="col-md-2">
+          <div class="col-6 col-md-3 col-lg-2">
             <input type="number" id="wishPrice" class="form-control" placeholder="Precio (€)" min="0" step="0.01">
           </div>
-          <div class="col-md-3">
-            <input type="url" id="wishLink" class="form-control" placeholder="Enlace (opcional)">
+          <div class="col-6 col-md-3 col-lg-4">
+            <input type="text" id="wishTitle" class="form-control" placeholder="Título (auto o manual)">
           </div>
-          <div class="col-md-3">
-            <input type="url" id="wishImage" class="form-control" placeholder="URL de la imagen (opcional)">
-          </div>
-          <div class="col-md-1 text-end">
-            <button type="submit" class="btn btn-success w-100">+</button>
+          <div class="col-12 col-md-2 text-center">
+            <button type="submit" class="btn btn-success w-100">Añadir</button>
           </div>
         </form>
+        <small class="text-muted d-block mt-2 text-center">
+          Al pegar el enlace, intentaré detectar título e imagen automáticamente 😉
+        </small>
       </div>
     </div>
 
     <!-- Botón para compartir -->
-    <div class="text-end mb-3">
+    <div id="shareControls" class="text-end mb-3">
       <button id="shareButton" class="btn btn-outline-primary">🔗 Generar enlace compartible</button>
     </div>
 
-    <!-- Caja con enlace generado -->
+    <!-- Caja del enlace generado -->
     <div id="shareBox" class="share-box card card-body mb-4">
       <p class="mb-2">Copia y comparte este enlace:</p>
       <input id="shareLink" class="form-control" readonly>
       <button class="btn btn-sm btn-secondary mt-2" onclick="copyLink()">📋 Copiar</button>
     </div>
 
-    <!-- Lista de deseos -->
-    <div id="wishlist" class="row g-4"></div>
+    <!-- Lista -->
+    <div id="wishlist" class="row g-4 justify-content-center"></div>
   </div>
 
   <script>
@@ -73,28 +88,30 @@
     const shareButton = document.getElementById('shareButton');
     const shareBox = document.getElementById('shareBox');
     const shareLink = document.getElementById('shareLink');
+    const formCard = document.getElementById('formCard');
+    const shareControls = document.getElementById('shareControls');
 
-    // Cargar desde localStorage
     let wishes = JSON.parse(localStorage.getItem('wishlist')) || [];
 
-    // Si hay datos en la URL (modo compartido)
-    const hashData = location.hash.slice(6); // #data=...
+    // 🔹 Modo compartido
+    const hashData = location.hash.startsWith('#data=') ? location.hash.slice(6) : null;
+    const isSharedView = !!hashData;
     if (hashData) {
       try {
         const decoded = JSON.parse(atob(decodeURIComponent(hashData)));
         wishes = decoded;
         localStorage.setItem('wishlist', JSON.stringify(wishes));
-      } catch (err) {
-        console.error("Error al decodificar los datos del enlace:", err);
-      }
+        formCard.style.display = 'none';
+        shareControls.style.display = 'none';
+      } catch (err) { console.error("Error al decodificar los datos del enlace:", err); }
     }
 
-    // Renderizar lista
+    // 🔹 Renderizar lista
     function renderWishes() {
       wishlist.innerHTML = '';
       wishes.forEach((wish, index) => {
         const card = document.createElement('div');
-        card.classList.add('col-md-4');
+        card.classList.add('col-12', 'col-sm-6', 'col-lg-4');
         card.innerHTML = `
           <div class="card wish-card shadow-sm h-100">
             <img src="${wish.image}" class="card-img-top" alt="${wish.title}">
@@ -103,25 +120,39 @@
               ${wish.price ? `<p class="card-text fw-bold text-success">💰 ${parseFloat(wish.price).toFixed(2)} €</p>` : ''}
               <div class="mt-auto">
                 ${wish.link ? `<a href="${wish.link}" target="_blank" class="btn btn-outline-primary mb-2 w-100">Ver enlace</a>` : ''}
-                <button class="btn btn-outline-danger btn-sm w-100" onclick="deleteWish(${index})">Eliminar</button>
+                ${!isSharedView ? `<button class="btn btn-outline-danger btn-sm w-100" onclick="deleteWish(${index})">Eliminar</button>` : ''}
               </div>
             </div>
-          </div>
-        `;
+          </div>`;
         wishlist.appendChild(card);
       });
     }
 
-    function saveWishes() {
-      localStorage.setItem('wishlist', JSON.stringify(wishes));
-    }
+    function saveWishes() { localStorage.setItem('wishlist', JSON.stringify(wishes)); }
 
-    form.addEventListener('submit', (e) => {
+    // 🔹 Autocompletar al pegar un enlace
+    document.getElementById('wishLink').addEventListener('change', async (e) => {
+      const url = e.target.value.trim();
+      if (!url) return;
+      try {
+        const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        if (data && data.data) {
+          document.getElementById('wishTitle').value = data.data.title || '';
+          document.getElementById('wishLink').dataset.image = data.data.image?.url || '';
+        }
+      } catch (err) {
+        console.warn("No se pudo obtener información del enlace:", err);
+      }
+    });
+
+    // 🔹 Añadir deseo
+    form?.addEventListener('submit', (e) => {
       e.preventDefault();
-      const title = document.getElementById('wishTitle').value;
+      const title = document.getElementById('wishTitle').value || 'Deseo sin título';
       const price = document.getElementById('wishPrice').value;
       const link = document.getElementById('wishLink').value;
-      const image = document.getElementById('wishImage').value || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
+      const image = document.getElementById('wishLink').dataset.image || 'https://via.placeholder.com/400x200?text=Sin+Imagen';
 
       wishes.push({ title, price, link, image });
       saveWishes();
@@ -129,28 +160,28 @@
       form.reset();
     });
 
+    // 🔹 Eliminar
     function deleteWish(index) {
       wishes.splice(index, 1);
       saveWishes();
       renderWishes();
     }
 
-    // 🔗 Generar enlace compartible
-    shareButton.addEventListener('click', () => {
+    // 🔹 Generar enlace compartible
+    shareButton?.addEventListener('click', () => {
       const encoded = encodeURIComponent(btoa(JSON.stringify(wishes)));
       const url = `${location.origin}${location.pathname}#data=${encoded}`;
       shareLink.value = url;
       shareBox.style.display = 'block';
     });
 
-    // 📋 Copiar enlace
+    // 🔹 Copiar enlace
     function copyLink() {
       shareLink.select();
       document.execCommand('copy');
       alert('¡Enlace copiado al portapapeles!');
     }
 
-    // Render inicial
     renderWishes();
   </script>
 

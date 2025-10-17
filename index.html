@@ -11,14 +11,12 @@
       background-color: #f8f9fa;
     }
 
-    /* Imagen de introducción */
     .intro-image img {
       width: 100px;
       height: 100px;
       object-fit: cover;
     }
 
-    /* Contador animado */
     #countdown {
       font-size: 1.25rem;
       animation: glow 3s ease-in-out infinite;
@@ -31,13 +29,11 @@
       100% { color: #dc3545; text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
     }
 
-    /* Barra de progreso */
     #progress-container {
       max-width: 400px;
       margin: 0 auto 20px auto;
     }
 
-    /* Cards de deseos */
     .wish-card img {
       object-fit: cover;
       height: 200px;
@@ -57,7 +53,6 @@
       transform: translateY(0);
     }
 
-    /* Vista previa de imagen */
     .preview-img {
       height: 100px;
       object-fit: cover;
@@ -68,14 +63,12 @@
 </head>
 <body>
 
-  <!-- Navbar -->
   <nav class="navbar navbar-dark bg-primary mb-3">
     <div class="container-fluid">
       <span class="navbar-brand mb-0 h1">🎁 Mi Lista de Deseos</span>
     </div>
   </nav>
 
-  <!-- Imagen de introducción -->
   <div class="intro-image text-center my-3">
     <img src="https://img1.picmix.com/output/stamp/normal/0/2/3/0/1100320_722ba.png" 
          alt="Imagen de introducción" 
@@ -83,12 +76,10 @@
     <p class="mt-2 text-muted">Bienvenido a mi lista de deseos 🎅</p>
   </div>
 
-  <!-- Contador de días -->
   <div class="text-center mb-2">
     <h5 class="fw-semibold" id="countdown"></h5>
   </div>
 
-  <!-- Barra de progreso -->
   <div id="progress-container">
     <div class="progress">
       <div class="progress-bar bg-warning" role="progressbar" style="width: 0%;" id="reyesProgress"></div>
@@ -96,7 +87,6 @@
   </div>
 
   <div class="container">
-    <!-- Formulario -->
     <div class="card mb-4 shadow-sm">
       <div class="card-body">
         <h5 class="card-title" id="formTitle">Añadir nuevo deseo</h5>
@@ -138,7 +128,6 @@
       </div>
     </div>
 
-    <!-- Compartir -->
     <div class="text-end mb-3" id="shareControls" style="display:none;">
       <button id="shareButton" class="btn btn-outline-primary">🔗 Generar enlace compartible</button>
     </div>
@@ -149,7 +138,6 @@
       <button class="btn btn-sm btn-secondary" onclick="copyLink()">📋 Copiar al portapapeles</button>
     </div>
 
-    <!-- Lista de deseos -->
     <div id="wishlist" class="row g-4"></div>
   </div>
 
@@ -174,19 +162,20 @@
     let wishes = JSON.parse(localStorage.getItem('wishlist')) || [];
     let editIndex = null;
 
-    // Imagen URL o subida
     imageType.addEventListener('change', () => {
       if (imageType.value === 'upload') {
         urlContainer.style.display = 'none';
         fileContainer.style.display = 'block';
         preview.style.display = 'none';
         preview.src = '';
+        fileInput.value = ''; // 🔧 Corrección: reset del input
         setTimeout(() => fileInput.click(), 100);
       } else {
         fileContainer.style.display = 'none';
         urlContainer.style.display = 'block';
         preview.style.display = 'none';
         preview.src = '';
+        fileInput.value = ''; // 🔧 Corrección: limpiar también al volver a URL
       }
     });
 
@@ -211,7 +200,6 @@
       } else preview.style.display = 'none';
     });
 
-    // Añadir / Editar deseo
     form.addEventListener('submit', e => {
       e.preventDefault();
       const title = document.getElementById('wishTitle').value;
@@ -239,20 +227,24 @@
 
       localStorage.setItem('wishlist', JSON.stringify(wishes));
       renderWishes();
+
+      // 🔧 Corrección: limpiar completamente después de añadir
       form.reset();
+      fileInput.value = '';
       preview.style.display = 'none';
+      preview.src = '';
     });
 
     cancelEditButton.addEventListener('click', () => {
       editIndex = null;
       form.reset();
+      fileInput.value = ''; // 🔧 corrección aquí también
       preview.style.display = 'none';
       formTitle.textContent = "Añadir nuevo deseo";
       submitButton.textContent = "Añadir a la lista";
       cancelEditButton.style.display = "none";
     });
 
-    // Renderizar deseos con enlace en imagen
     function renderWishes() {
       wishlist.innerHTML = '';
       wishes.forEach((wish, index) => {
@@ -309,7 +301,6 @@
       }, 300);
     }
 
-    // Compartir
     async function generateShortLink(longUrl) {
       try {
         const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
@@ -346,7 +337,6 @@
       }
     }
 
-    // Contador de días y barra de progreso
     function updateCountdown() {
       const targetDate = new Date("2026-01-06T00:00:00");
       const now = new Date();
@@ -360,8 +350,7 @@
         countdownEl.textContent = "👑 ¡Feliz Día de Reyes! 🎉";
       }
 
-      // Barra de progreso
-      const startDate = new Date("2025-01-01T00:00:00"); // inicio del año
+      const startDate = new Date("2025-01-01T00:00:00");
       const totalDays = (targetDate - startDate) / (1000*60*60*24);
       const elapsedDays = (now - startDate) / (1000*60*60*24);
       const percent = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
@@ -369,7 +358,7 @@
     }
 
     updateCountdown();
-    setInterval(updateCountdown, 1000 * 60 * 60); // cada hora
+    setInterval(updateCountdown, 1000 * 60 * 60);
     renderWishes();
   </script>
 

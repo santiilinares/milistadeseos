@@ -55,26 +55,21 @@
           <div class="col-md-3">
             <input type="number" id="wishPrice" class="form-control" placeholder="Precio (€)" min="0" step="0.01">
           </div>
-
           <div class="col-md-3">
             <select id="imageType" class="form-select">
               <option value="url" selected>Usar enlace de imagen</option>
               <option value="upload">Subir imagen</option>
             </select>
           </div>
-
           <div class="col-md-6" id="urlInputContainer">
             <input type="url" id="wishImageURL" class="form-control" placeholder="URL de la imagen (opcional)">
           </div>
-
           <div class="col-md-6" id="fileInputContainer" style="display: none;">
             <input type="file" id="wishImageFile" class="form-control" accept="image/*">
           </div>
-
           <div class="col-12 text-center">
             <img id="imagePreview" class="preview-img mt-2" alt="Vista previa">
           </div>
-
           <div class="col-12 text-end">
             <button type="submit" class="btn btn-success" id="submitButton">Añadir a la lista</button>
             <button type="button" class="btn btn-secondary" id="cancelEditButton" style="display:none;">Cancelar edición</button>
@@ -103,8 +98,8 @@
     // ------------------------
     // CONFIG: pega TU NUEVA API KEY AQUI (NO uses la que ya expusiste públicamente)
     // ------------------------
-    const JSONBIN_API_KEY = "$2a$10$nSFiU2LxJTNF3BRq6.q68uxdE9whnjxQr5eeIsFA1aCK2f5BHOqFm"; // <- pega tu nueva clave aquí (manténla privada)
-    const JSONBIN_BASE = "https://api.jsonbin.io/v3/bins";
+    const JSONBIN_API_KEY = "TU_API_KEY_AQUI"; // <- pega tu clave aquí (privada)
+    const JSONBIN_BASE = "https://api.jsonbin.io/v3/b"; // Endpoint v3 correcto
 
     // ---------------------------------------------------
     // UI elementos
@@ -133,8 +128,6 @@
     // ---------------------------------------------------
     let wishes = JSON.parse(localStorage.getItem('wishlist')) || [];
     let editIndex = null;
-
-    // Guardamos localmente el binId creado por JSONBin para poder actualizarlo después
     const LOCAL_BIN_KEY = 'wishlist_bin_id';
 
     // ---------------------------------------------------
@@ -205,7 +198,6 @@
 
       localStorage.setItem('wishlist', JSON.stringify(wishes));
       renderWishes();
-
       form.reset();
       fileInput.value = '';
       preview.style.display = 'none';
@@ -246,18 +238,15 @@
         setTimeout(() => col.firstElementChild.classList.add('show'), 50);
       });
       shareControls.style.display = wishes.length > 0 ? 'block' : 'none';
-      // mostrar si existe binId guardado localmente (posible auto-actualización)
       revokeBtn.style.display = localStorage.getItem(LOCAL_BIN_KEY) ? 'inline-block' : 'none';
     }
 
-    // Hacer funciones globales para poder usarlas desde el HTML generado (editar/eliminar)
     window.editWish = function(index) {
       const wish = wishes[index];
       editIndex = index;
       formTitle.textContent = "✏️ Editar deseo";
       submitButton.textContent = "Guardar cambios";
       cancelEditButton.style.display = "inline-block";
-
       document.getElementById('wishTitle').value = wish.title;
       document.getElementById('wishLink').value = wish.link;
       document.getElementById('wishPrice').value = wish.price;
@@ -267,7 +256,6 @@
       imageType.value = 'url';
       urlContainer.style.display = 'block';
       fileContainer.style.display = 'none';
-
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -282,9 +270,8 @@
     };
 
     // ---------------------------------------------------
-    // JSONBin: crear/actualizar y leer
+    // JSONBin v3
     // ---------------------------------------------------
-
     async function createBin(data) {
       const res = await fetch(JSONBIN_BASE, {
         method: 'POST',
@@ -295,7 +282,10 @@
         },
         body: JSON.stringify({ wishlist: data })
       });
-      if (!res.ok) throw new Error('Error creando bin');
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error('Error creando bin: ' + res.status + ' ' + text);
+      }
       const json = await res.json();
       return json?.metadata?.id || null;
     }
@@ -315,33 +305,28 @@
     }
 
     async function loadBinPublic(binId) {
-      // Intentamos leer la versión pública (latest) sin exponer la clave.
       const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`);
       if (!res.ok) throw new Error('No se pudo leer el bin público');
       const json = await res.json();
       return json?.record?.wishlist || [];
     }
 
-    // Crear o actualizar el bin guardando el binId en localStorage para futuras ediciones
     async function uploadOrUpdateWishlist(data) {
       if (!JSONBIN_API_KEY || JSONBIN_API_KEY === "TU_API_KEY_AQUI") {
-        throw new Error("Debes configurar tu JSONBIN_API_KEY en el archivo antes de subir.");
+        throw new Error("Debes configurar tu JSONBIN_API_KEY antes de subir.");
       }
 
       const existingBinId = localStorage.getItem(LOCAL_BIN_KEY);
       try {
         if (existingBinId) {
-          // Intentamos actualizar primero
           const updatedId = await updateBin(existingBinId, data);
           return updatedId;
         } else {
-          // Crear nuevo bin
           const newId = await createBin(data);
           if (newId) localStorage.setItem(LOCAL_BIN_KEY, newId);
           return newId;
         }
       } catch (err) {
-        // Si actualizar falló y no había bin, intentar crear de nuevo
         console.error(err);
         if (!existingBinId) {
           const newId = await createBin(data);
@@ -352,15 +337,12 @@
       }
     }
 
-    // Evento del botón compartir
     shareButton.addEventListener('click', async () => {
       shareBox.style.display = 'block';
       shareLink.value = "Procesando...";
-
       try {
         const binId = await uploadOrUpdateWishlist(wishes);
         if (!binId) throw new Error('No se obtuvo binId');
-
         const shareUrl = `${location.origin}${location.pathname}#bin=${binId}`;
         shareLink.value = shareUrl;
         alert('✅ Lista subida correctamente. Comparte el enlace con quien quieras.');
@@ -372,7 +354,6 @@
       }
     });
 
-    // Cargar un bin por su id (se intenta lectura pública)
     async function loadWishlistFromBin(binId) {
       try {
         const data = await loadBinPublic(binId);
@@ -380,7 +361,6 @@
         renderWishes();
       } catch (err) {
         console.error('Lectura pública fallida, intentando con clave...', err);
-        // Intentamos leer con clave (por si el bin no está público)
         try {
           const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
             headers: { 'X-Master-Key': JSONBIN_API_KEY }
@@ -396,27 +376,23 @@
       }
     }
 
-    // Detectar #bin=ID en la URL
     if (location.hash.startsWith('#bin=')) {
       const binId = location.hash.slice(5);
       if (binId) loadWishlistFromBin(binId);
     }
 
-    // Copiar al portapapeles (API moderna)
     copyBtn.addEventListener('click', async () => {
       const text = shareLink.value;
       try {
         await navigator.clipboard.writeText(text);
         alert('¡Enlace copiado al portapapeles!');
       } catch {
-        // fallback
         shareLink.select();
         document.execCommand('copy');
         alert('¡Enlace copiado al portapapeles! (fallback)');
       }
     });
 
-    // Revoke: eliminar binId local (no borra del servidor)
     revokeBtn.addEventListener('click', () => {
       localStorage.removeItem(LOCAL_BIN_KEY);
       revokeBtn.style.display = 'none';
@@ -431,13 +407,8 @@
       const now = new Date();
       const diff = targetDate - now;
       const days = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-
       const countdownEl = document.getElementById("countdown");
-      if (days > 0) {
-        countdownEl.textContent = `🎁 Faltan ${days} día${days === 1 ? '' : 's'} para el Día de Reyes 👑`;
-      } else {
-        countdownEl.textContent = "👑 ¡Feliz Día de Reyes! 🎉";
-      }
+      countdownEl.textContent = days > 0 ? `🎁 Faltan ${days} día${days===1?'':'s'} para el Día de Reyes 👑` : "👑 ¡Feliz Día de Reyes! 🎉";
 
       const startDate = new Date("2025-01-01T00:00:00");
       const totalDays = (targetDate - startDate) / (1000*60*60*24);

@@ -7,62 +7,19 @@
   <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3730/3730613.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #f8f9fa;
-    }
-
-    .intro-image img {
-      width: 100px;
-      height: 100px;
-      object-fit: cover;
-    }
-
-    #countdown {
-      font-size: 1.25rem;
-      animation: glow 3s ease-in-out infinite;
-      text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
-    }
-
-    @keyframes glow {
-      0% { color: #dc3545; text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
-      50% { color: #ffc107; text-shadow: 0 0 16px rgba(255, 255, 0, 0.7); }
-      100% { color: #dc3545; text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
-    }
-
-    #progress-container {
-      max-width: 400px;
-      margin: 0 auto 20px auto;
-    }
-
-    .wish-card img {
-      object-fit: cover;
-      height: 200px;
-      transition: transform 0.3s ease;
-      cursor: pointer;
-    }
-    .wish-card img:hover {
-      transform: scale(1.05);
-    }
-    .wish-card {
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.5s ease;
-    }
-    .wish-card.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .preview-img {
-      height: 100px;
-      object-fit: cover;
-      border-radius: 8px;
-      display: none;
-    }
+    body { background-color: #f8f9fa; }
+    .intro-image img { width: 100px; height: 100px; object-fit: cover; }
+    #countdown { font-size: 1.25rem; animation: glow 3s ease-in-out infinite; text-shadow: 0 0 8px rgba(255, 215, 0, 0.5); }
+    @keyframes glow { 0% { color: #dc3545; text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); } 50% { color: #ffc107; text-shadow: 0 0 16px rgba(255,255,0,0.7); } 100% { color: #dc3545; text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); } }
+    #progress-container { max-width: 400px; margin: 0 auto 20px auto; }
+    .wish-card img { object-fit: cover; height: 200px; transition: transform 0.3s ease; cursor: pointer; }
+    .wish-card img:hover { transform: scale(1.05); }
+    .wish-card { opacity: 0; transform: translateY(20px); transition: all 0.5s ease; }
+    .wish-card.show { opacity: 1; transform: translateY(0); }
+    .preview-img { height: 100px; object-fit: cover; border-radius: 8px; display: none; }
   </style>
 </head>
 <body>
-
   <nav class="navbar navbar-dark bg-primary mb-3">
     <div class="container-fluid">
       <span class="navbar-brand mb-0 h1">🎁 Mi Lista de Deseos</span>
@@ -70,9 +27,7 @@
   </nav>
 
   <div class="intro-image text-center my-3">
-    <img src="https://img1.picmix.com/output/stamp/normal/0/2/3/0/1100320_722ba.png" 
-         alt="Imagen de introducción" 
-         class="img-fluid rounded-circle shadow-sm">
+    <img src="https://img1.picmix.com/output/stamp/normal/0/2/3/0/1100320_722ba.png" alt="Imagen de introducción" class="img-fluid rounded-circle shadow-sm">
     <p class="mt-2 text-muted">Bienvenido a mi lista de deseos 🎅</p>
   </div>
 
@@ -129,19 +84,31 @@
     </div>
 
     <div class="text-end mb-3" id="shareControls" style="display:none;">
-      <button id="shareButton" class="btn btn-outline-primary">🔗 Generar enlace compartible</button>
+      <button id="shareButton" class="btn btn-outline-primary">🔗 Generar enlace compartible (subir a JSONBin)</button>
     </div>
 
     <div id="shareBox" class="card card-body mb-4" style="display:none;">
-      <p class="mb-2">Enlace corto listo para compartir:</p>
+      <p class="mb-2">Enlace listo para compartir:</p>
       <input id="shareLink" class="form-control mb-2" readonly>
-      <button class="btn btn-sm btn-secondary" onclick="copyLink()">📋 Copiar al portapapeles</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-secondary" id="copyBtn">📋 Copiar al portapapeles</button>
+        <button class="btn btn-sm btn-outline-danger" id="revokeBtn" style="display:none;">🔁 Revocar bin guardado localmente</button>
+      </div>
     </div>
 
     <div id="wishlist" class="row g-4"></div>
   </div>
 
   <script>
+    // ------------------------
+    // CONFIG: pega TU NUEVA API KEY AQUI (NO uses la que ya expusiste públicamente)
+    // ------------------------
+    const JSONBIN_API_KEY = "$2a$10$d4y5Nz3g8zoUMBRzBIXt6O/1TPdTrloKwbSXnx/gphrW/Ps5qY5VC"; // <- pega tu nueva clave aquí (manténla privada)
+    const JSONBIN_BASE = "https://api.jsonbin.io/v3/bins";
+
+    // ---------------------------------------------------
+    // UI elementos
+    // ---------------------------------------------------
     const form = document.getElementById('wishForm');
     const wishlist = document.getElementById('wishlist');
     const shareButton = document.getElementById('shareButton');
@@ -158,24 +125,35 @@
     const submitButton = document.getElementById('submitButton');
     const cancelEditButton = document.getElementById('cancelEditButton');
     const progressBar = document.getElementById('reyesProgress');
+    const copyBtn = document.getElementById('copyBtn');
+    const revokeBtn = document.getElementById('revokeBtn');
 
+    // ---------------------------------------------------
+    // Datos
+    // ---------------------------------------------------
     let wishes = JSON.parse(localStorage.getItem('wishlist')) || [];
     let editIndex = null;
 
+    // Guardamos localmente el binId creado por JSONBin para poder actualizarlo después
+    const LOCAL_BIN_KEY = 'wishlist_bin_id';
+
+    // ---------------------------------------------------
+    // UI handlers
+    // ---------------------------------------------------
     imageType.addEventListener('change', () => {
       if (imageType.value === 'upload') {
         urlContainer.style.display = 'none';
         fileContainer.style.display = 'block';
         preview.style.display = 'none';
         preview.src = '';
-        fileInput.value = ''; // 🔧 Corrección: reset del input
+        fileInput.value = '';
         setTimeout(() => fileInput.click(), 100);
       } else {
         fileContainer.style.display = 'none';
         urlContainer.style.display = 'block';
         preview.style.display = 'none';
         preview.src = '';
-        fileInput.value = ''; // 🔧 Corrección: limpiar también al volver a URL
+        fileInput.value = '';
       }
     });
 
@@ -228,7 +206,6 @@
       localStorage.setItem('wishlist', JSON.stringify(wishes));
       renderWishes();
 
-      // 🔧 Corrección: limpiar completamente después de añadir
       form.reset();
       fileInput.value = '';
       preview.style.display = 'none';
@@ -238,7 +215,7 @@
     cancelEditButton.addEventListener('click', () => {
       editIndex = null;
       form.reset();
-      fileInput.value = ''; // 🔧 corrección aquí también
+      fileInput.value = '';
       preview.style.display = 'none';
       formTitle.textContent = "Añadir nuevo deseo";
       submitButton.textContent = "Añadir a la lista";
@@ -252,12 +229,12 @@
         col.classList.add('col-md-4');
         col.innerHTML = `
           <div class="card wish-card shadow-sm">
-            ${wish.link ? `<a href="${wish.link}" target="_blank"><img src="${wish.image}" class="card-img-top" alt="${wish.title}"></a>` :
+            ${wish.link ? `<a href="${wish.link}" target="_blank" rel="noopener"><img src="${wish.image}" class="card-img-top" alt="${wish.title}"></a>` :
             `<img src="${wish.image}" class="card-img-top" alt="${wish.title}">`}
             <div class="card-body">
               <h5 class="card-title">${wish.title}</h5>
               ${wish.price ? `<p class="text-success fw-bold">💰 ${parseFloat(wish.price).toFixed(2)} €</p>` : ''}
-              ${wish.link ? `<a href="${wish.link}" target="_blank" class="btn btn-outline-primary mb-2">Ver enlace</a>` : ''}
+              ${wish.link ? `<a href="${wish.link}" target="_blank" rel="noopener" class="btn btn-outline-primary mb-2">Ver enlace</a>` : ''}
               <div class="d-flex justify-content-between">
                 <button class="btn btn-outline-warning btn-sm" onclick="editWish(${index})">✏️ Editar</button>
                 <button class="btn btn-outline-danger btn-sm" onclick="deleteWish(${index})">🗑️ Eliminar</button>
@@ -269,9 +246,12 @@
         setTimeout(() => col.firstElementChild.classList.add('show'), 50);
       });
       shareControls.style.display = wishes.length > 0 ? 'block' : 'none';
+      // mostrar si existe binId guardado localmente (posible auto-actualización)
+      revokeBtn.style.display = localStorage.getItem(LOCAL_BIN_KEY) ? 'inline-block' : 'none';
     }
 
-    function editWish(index) {
+    // Hacer funciones globales para poder usarlas desde el HTML generado (editar/eliminar)
+    window.editWish = function(index) {
       const wish = wishes[index];
       editIndex = index;
       formTitle.textContent = "✏️ Editar deseo";
@@ -289,9 +269,9 @@
       fileContainer.style.display = 'none';
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    };
 
-    function deleteWish(index) {
+    window.deleteWish = function(index) {
       const card = wishlist.children[index].firstElementChild;
       card.classList.remove('show');
       setTimeout(() => {
@@ -299,44 +279,153 @@
         localStorage.setItem('wishlist', JSON.stringify(wishes));
         renderWishes();
       }, 300);
+    };
+
+    // ---------------------------------------------------
+    // JSONBin: crear/actualizar y leer
+    // ---------------------------------------------------
+
+    async function createBin(data) {
+      const res = await fetch(JSONBIN_BASE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_API_KEY,
+          'X-Bin-Private': 'true'
+        },
+        body: JSON.stringify({ wishlist: data })
+      });
+      if (!res.ok) throw new Error('Error creando bin');
+      const json = await res.json();
+      return json?.metadata?.id || null;
     }
 
-    async function generateShortLink(longUrl) {
+    async function updateBin(binId, data) {
+      const res = await fetch(`${JSONBIN_BASE}/${binId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_API_KEY
+        },
+        body: JSON.stringify({ wishlist: data })
+      });
+      if (!res.ok) throw new Error('Error actualizando bin');
+      const json = await res.json();
+      return json?.metadata?.id || binId;
+    }
+
+    async function loadBinPublic(binId) {
+      // Intentamos leer la versión pública (latest) sin exponer la clave.
+      const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`);
+      if (!res.ok) throw new Error('No se pudo leer el bin público');
+      const json = await res.json();
+      return json?.record?.wishlist || [];
+    }
+
+    // Crear o actualizar el bin guardando el binId en localStorage para futuras ediciones
+    async function uploadOrUpdateWishlist(data) {
+      if (!JSONBIN_API_KEY || JSONBIN_API_KEY === "TU_API_KEY_AQUI") {
+        throw new Error("Debes configurar tu JSONBIN_API_KEY en el archivo antes de subir.");
+      }
+
+      const existingBinId = localStorage.getItem(LOCAL_BIN_KEY);
       try {
-        const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-        if (!res.ok) throw new Error("Error al generar el enlace");
-        return await res.text();
+        if (existingBinId) {
+          // Intentamos actualizar primero
+          const updatedId = await updateBin(existingBinId, data);
+          return updatedId;
+        } else {
+          // Crear nuevo bin
+          const newId = await createBin(data);
+          if (newId) localStorage.setItem(LOCAL_BIN_KEY, newId);
+          return newId;
+        }
       } catch (err) {
-        alert("No se pudo generar el enlace corto. Usa el largo como alternativa.");
-        return longUrl;
+        // Si actualizar falló y no había bin, intentar crear de nuevo
+        console.error(err);
+        if (!existingBinId) {
+          const newId = await createBin(data);
+          if (newId) localStorage.setItem(LOCAL_BIN_KEY, newId);
+          return newId;
+        }
+        throw err;
       }
     }
 
+    // Evento del botón compartir
     shareButton.addEventListener('click', async () => {
-      const encoded = encodeURIComponent(btoa(JSON.stringify(wishes)));
-      const longUrl = `${location.origin}${location.pathname}#data=${encoded}`;
       shareBox.style.display = 'block';
-      shareLink.value = "Generando...";
-      const shortUrl = await generateShortLink(longUrl);
-      shareLink.value = shortUrl;
+      shareLink.value = "Procesando...";
+
+      try {
+        const binId = await uploadOrUpdateWishlist(wishes);
+        if (!binId) throw new Error('No se obtuvo binId');
+
+        const shareUrl = `${location.origin}${location.pathname}#bin=${binId}`;
+        shareLink.value = shareUrl;
+        alert('✅ Lista subida correctamente. Comparte el enlace con quien quieras.');
+        revokeBtn.style.display = 'inline-block';
+      } catch (err) {
+        console.error(err);
+        shareLink.value = "❌ Error subiendo la lista";
+        alert('No se pudo subir la lista. Revisa la consola y tu API key.');
+      }
     });
 
-    function copyLink() {
-      shareLink.select();
-      document.execCommand('copy');
-      alert('¡Enlace copiado al portapapeles!');
-    }
-
-    if (location.hash.startsWith('#data=')) {
+    // Cargar un bin por su id (se intenta lectura pública)
+    async function loadWishlistFromBin(binId) {
       try {
-        const data = JSON.parse(atob(decodeURIComponent(location.hash.slice(6))));
+        const data = await loadBinPublic(binId);
         wishes = data;
         renderWishes();
       } catch (err) {
-        console.error('Error al decodificar el enlace compartido:', err);
+        console.error('Lectura pública fallida, intentando con clave...', err);
+        // Intentamos leer con clave (por si el bin no está público)
+        try {
+          const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+          });
+          if (!res.ok) throw new Error('No se pudo leer el bin incluso con clave');
+          const json = await res.json();
+          wishes = json.record.wishlist || [];
+          renderWishes();
+        } catch (err2) {
+          console.error(err2);
+          alert('No se pudo cargar la lista compartida. Puede que el ID sea inválido o la lista no esté disponible públicamente.');
+        }
       }
     }
 
+    // Detectar #bin=ID en la URL
+    if (location.hash.startsWith('#bin=')) {
+      const binId = location.hash.slice(5);
+      if (binId) loadWishlistFromBin(binId);
+    }
+
+    // Copiar al portapapeles (API moderna)
+    copyBtn.addEventListener('click', async () => {
+      const text = shareLink.value;
+      try {
+        await navigator.clipboard.writeText(text);
+        alert('¡Enlace copiado al portapapeles!');
+      } catch {
+        // fallback
+        shareLink.select();
+        document.execCommand('copy');
+        alert('¡Enlace copiado al portapapeles! (fallback)');
+      }
+    });
+
+    // Revoke: eliminar binId local (no borra del servidor)
+    revokeBtn.addEventListener('click', () => {
+      localStorage.removeItem(LOCAL_BIN_KEY);
+      revokeBtn.style.display = 'none';
+      alert('ID local revocado. La URL compartida sigue existiendo en JSONBin pero ya no se actualizará desde este navegador.');
+    });
+
+    // ---------------------------------------------------
+    // Countdown / progress
+    // ---------------------------------------------------
     function updateCountdown() {
       const targetDate = new Date("2026-01-06T00:00:00");
       const now = new Date();
